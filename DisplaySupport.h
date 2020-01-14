@@ -19,16 +19,16 @@ void drawbitmap(uint8_t XdisplayPos, uint8_t YdisplayPos, uint8_t bmpWidth, uint
 	display.drawBitmap( XdisplayPos, YdisplayPos, bmpToDisplay, bmpWidth, bmpHeight, 1);
 	display.display();
 }
-//// XdisplayPos, in pixels
-//// LineNumber, 0 - 3
+// XdisplayPos, in digits
+// LineNumber, 0 - 3
 void drawText(uint8_t XdisplayPos, uint8_t LineNumber, String TextToDisplay)
 {
 	//display.clearDisplay();
 
 	display.setTextSize(1);						 // Normal 1:1 pixel scale
 	display.setTextColor(SSD1306_WHITE);		 // Draw white text
-	display.setCursor(XdisplayPos, (LineNumber - 1)*8); // Start at top-left corner
-	display.println((TextToDisplay));
+	display.setCursor(XdisplayPos*6, (LineNumber - 1)*8); // Start at top-left corner
+	display.print((TextToDisplay));
 
 	//   display.setTextColor(SSD1306_BLACK, SSD1306_WHITE); // Draw 'inverse' text
 	//   display.println(3.141592);
@@ -44,6 +44,7 @@ void drawText(uint8_t XdisplayPos, uint8_t LineNumber, String TextToDisplay)
 void ClearScreen(void)
 {
 	display.clearDisplay();
+	display.display();
 }
 
 // XdisplayPos, in digits
@@ -86,19 +87,20 @@ void ClearPixels(uint8_t XdisplayPos, uint8_t YdisplayPos, uint8_t NumberOfPixel
 	display.display();
 }
 
-// XdisplayPos, in pixels
-// LineNumber, 0 - 3
+// XdisplayPos, in digits
+// LineNumber, 1 - 4
 // NumberToDisplay, must be in float 2 digits percision
 void drawNumber(uint8_t XdisplayPos, uint8_t LineNumber, float NumberToDisplay)
 {
 	//display.clearDisplay();
 	memset(buff, 0, sizeof(buff));
+	valueString = "";
 	dtostrf(NumberToDisplay, 4, 2, buff);
 	valueString += buff;
 	display.setTextSize(1);						 // Normal 1:1 pixel scale
 	display.setTextColor(SSD1306_WHITE);		 // Draw white text
-	display.setCursor(XdisplayPos, (LineNumber - 1)*8); // Start at top-left corner
-	display.println((valueString));
+	display.setCursor(XdisplayPos * 6, (LineNumber - 1)*8); // Start at top-left corner
+	display.print((valueString));
 
 	//   display.setTextColor(SSD1306_BLACK, SSD1306_WHITE); // Draw 'inverse' text
 	//   display.println(3.141592);
