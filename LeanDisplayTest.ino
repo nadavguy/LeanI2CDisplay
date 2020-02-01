@@ -21,7 +21,7 @@ unsigned long TwentymSecCycle = 0;
 float PreviousVoltageCh1 = 0;
 float PreviousVoltageCh2 = 0;
 float PreviousVoltageBat = 0;
-float RefVoltage = 5.2;
+
 float Ch1AmpsRefVoltage =507.0;
 
 
@@ -29,9 +29,15 @@ float Ch1AmpsRefVoltage =507.0;
 
 uint8_t Fan1Phase = 0; 
 uint8_t Fan2Phase = 0; 
+
+#define Pltr1Pin 1
+#define Fan1Pin 2
+
 void setup() {
   Serial.begin(9600);
-  pinMode(2,OUTPUT);
+  //pinMode(2,OUTPUT);
+  pinMode(Pltr1Pin,OUTPUT);
+  pinMode(Fan1Pin,OUTPUT);
   pinMode(A0,INPUT);
   pinMode(A1,INPUT);
   pinMode(A2,INPUT);
@@ -66,8 +72,8 @@ void setup() {
   drawText(0,1,"Ch1:");
   drawText(0,3,"Ch2:");
   digitalWrite(2, HIGH); 
-  //ClearPixels(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight);
-  //drawbitmap(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight, FANOff_bmp);
+  ClearPixels(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight);
+  drawbitmap(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight, FANOff_bmp);
   CurrentTimeuSec = micros();
   TwentymSecCycle = micros();
 }
@@ -75,6 +81,14 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   // Show measured data on display 
+
+  // Timer Overflow protection
+  if ( micros() < TwentymSecCycle)
+  {
+    GeneralCounter++;
+    TwentymSecCycle = 20000 - (4294967295 - TwentymSecCycle);
+  }
+
 
   // Update value of TwentymSecCycle every 20mSec for PWM
   if ( micros() - TwentymSecCycle > 20000)
@@ -88,16 +102,10 @@ void loop() {
     /* Close PLTR, Set PWM to 1.5mSec */
   }
 
-  if ( micros() < TwentymSecCycle)
-  {
-    GeneralCounter++;
-    TwentymSecCycle = 20000 - (4294967295 - TwentymSecCycle);
-  }
-
 
   DisplayCh1();
-  DisplayCh2();
-  DisplayBat();
+  DisplayFan();
+  // DisplayCh2();
 
   // delay(500);
   // ClearPixels(MosfetIconXOffset ,MosfetIconYOffset , MosfetIconWidth, MosfetIconHeight);
@@ -142,15 +150,15 @@ void DisplayFan()
 
 void DisplayCh1()
 {
-  if ((PreviousVoltageCh1 * 1.01 < float(V1In * RefVoltage / 1023.0)) || (PreviousVoltageCh1 * 0.99 > float(V1In * RefVoltage / 1023.0)))
+  if ( (PreviousVoltageCh1 * 1.01 < V1In) || (PreviousVoltageCh1 * 0.99 > V1In) )
   {
-    PreviousVoltageCh1 = float(V1In * RefVoltage / 1023.0);
-    ClearDigits(5, 1, 5);
-    drawNumber(5, 1, float(V1In * RefVoltage / 1023.0));
-    drawText(10,1,"V");
-    ClearDigits(5, 2, 10);
-    drawNumber(5, 2, -1*float( ((Amps1Average - Ch1AmpsRefVoltage)*5.0/1023.0)/0.1 ));
-    drawText(10,2,"A");
+    PreviousVoltageCh1 = V1In;
+    ClearDigits(5, 1, 6);
+    drawNumber(5, 1, V1In);
+    drawText(10,1,"C");
+    // ClearDigits(5, 2, 10);
+    // drawNumber(5, 2, -1*float( ((Amps1Average - Ch1AmpsRefVoltage)*5.0/1023.0)/0.1 ));
+    // drawText(10,2,"A");
   }
 }
 
@@ -168,34 +176,30 @@ void DisplayCh2()
   }
 }
 
-void DisplayBat()
+void ManageChannel1Temp()
 {
-  VBatIn = float(VBatAverage * 5.0 / 1023.0);
-  if ((PreviousVoltageBat * 1.02 < VBatIn) || (PreviousVoltageBat * 0.98 > VBatIn))
+  if (V1In > 15.0) // After SteadState acheived
   {
-    Serial.print("VBatIn: ");
-    Serial.println(VBatIn);
-    PreviousVoltageBat = VBatIn;
-    ClearPixels(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight);
-    if (VBatIn > 4.1)
+    if (V1In < MinTempChannel1)
     {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery100Percent_bmp);
+      digitalWrite(Pltr1Pin, HIGH);
+      IsPLTR1On = true;
     }
-    else if ((VBatIn <= 4.1) && (VBatIn > 3.9))
+    else if (V1In > MaxTempChannel1)
     {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery75Percent_bmp);
+      digitalWrite(Pltr1Pin, LOW);
+      IsPLTR1On = false;
     }
-    else if ((VBatIn <= 3.9) && (VBatIn > 3.7))
+    if ( (V1In > 45.0) && (IsPLTR1On) && (!IsFan1ManualMode) )
     {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery50Percent_bmp);
+      digitalWrite(Fan1Pin, HIGH);
+      IsFan1On = true;
     }
-    else if ((VBatIn <= 3.7) && (VBatIn > 3.5))
+    else // TODO: Add fan PWM manual modes if needed
     {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery25Percent_bmp);
+      digitalWrite(Fan1Pin, LOW);
+      IsFan1On = false;
     }
-    else
-    {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery0Percent_bmp);
-    }
+    
   }
 }
