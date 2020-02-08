@@ -10,7 +10,7 @@
 #define MosfetIconYOffset	 0
 #define Fan1IconHeight	 12 // Y Axis
 #define Fan1IconWidth	     12 // X Axis
-#define Fan1IconXOffset	 78
+#define Fan1IconXOffset	 76
 #define Fan1IconYOffset	 0
 static const unsigned char PROGMEM Battery100Percent_bmp[] =
 {

@@ -1,6 +1,6 @@
-
 #include <SPI.h>
 #include <Wire.h>
+#include <dht.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include "MainLogic.h"
@@ -17,32 +17,34 @@
 unsigned long CurrentTimeuSec = 0;
 unsigned long Fan1DisplayCycle = 0;
 unsigned long Fan2DisplayCycle = 0;
+unsigned long Mosfet1DisplayCycle = 0;
+unsigned long Mosfet2DisplayCycle = 0;
 unsigned long TwentymSecCycle = 0;
+
 float PreviousVoltageCh1 = 0;
 float PreviousVoltageCh2 = 0;
 float PreviousVoltageBat = 0;
 
-float Ch1AmpsRefVoltage =507.0;
-
-
-
-
 uint8_t Fan1Phase = 0; 
 uint8_t Fan2Phase = 0; 
+uint8_t PWM100 = 255;
+uint8_t PWM75 = 190;
+uint8_t PWM50 = 127;
+uint8_t PWM25 = 63;
+uint8_t PWM0 = 0;
 
-#define Pltr1Pin 1
-#define Fan1Pin 2
+
 
 void setup() {
   Serial.begin(9600);
   //pinMode(2,OUTPUT);
   pinMode(Pltr1Pin,OUTPUT);
   pinMode(Fan1Pin,OUTPUT);
-  pinMode(A0,INPUT);
-  pinMode(A1,INPUT);
-  pinMode(A2,INPUT);
-  pinMode(A6,INPUT);
-  pinMode(A7,INPUT);
+  pinMode(TempSns1Pin,INPUT);
+  pinMode(TempSns2Pin,INPUT);
+  //pinMode(DHT11_1Pin,INPUT);
+  // pinMode(A6,INPUT);
+  // pinMode(A7,INPUT);
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
     Serial.println(F("SSD1306 allocation failed"));
@@ -74,6 +76,8 @@ void setup() {
   digitalWrite(2, HIGH); 
   ClearPixels(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight);
   drawbitmap(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight, FANOff_bmp);
+  ClearPixels(MosfetIconXOffset, MosfetIconYOffset, MosfetIconWidth, MosfetIconHeight);
+  drawbitmap(MosfetIconXOffset, MosfetIconYOffset, MosfetIconWidth, MosfetIconHeight, MOSFETOff_bmp);
   CurrentTimeuSec = micros();
   TwentymSecCycle = micros();
 }
@@ -102,9 +106,22 @@ void loop() {
     /* Close PLTR, Set PWM to 1.5mSec */
   }
 
+  if ( micros() - FiveSecCycle > 5000000)
+  {
+    DHT1chk = DHT1.read11(DHT11_1Pin);
+    RelativeHumidity1 = DHT1.humidity;
+    FiveSecCycle = micros();
+    if ( (DHT1chk==-1) || (DHT1chk==0) )
+    {
+      Serial.print("Hum1: ");
+      Serial.println(DHT1chk);
+    }
+  }
 
+  ManageChannel1Temp();
   DisplayCh1();
   DisplayFan();
+  DisplayMosfet1();
   // DisplayCh2();
 
   // delay(500);
@@ -150,15 +167,19 @@ void DisplayFan()
 
 void DisplayCh1()
 {
-  if ( (PreviousVoltageCh1 * 1.01 < V1In) || (PreviousVoltageCh1 * 0.99 > V1In) )
+  if ( (PreviousVoltageCh1 * 1.01 < V1In) || (PreviousVoltageCh1 * 0.99 > V1In) )// make as ABS
   {
     PreviousVoltageCh1 = V1In;
     ClearDigits(5, 1, 6);
     drawNumber(5, 1, V1In);
     drawText(10,1,"C");
-    // ClearDigits(5, 2, 10);
-    // drawNumber(5, 2, -1*float( ((Amps1Average - Ch1AmpsRefVoltage)*5.0/1023.0)/0.1 ));
-    // drawText(10,2,"A");
+    if ((DHT1chk == -1) || (DHT1chk == 0))
+    {
+      ClearDigits(5, 2, 6);
+      drawNumber(5, 2, float(RelativeHumidity1));
+      drawText(10, 2, "%");
+      DHT1chk = -2;
+    }
   }
 }
 
@@ -170,9 +191,22 @@ void DisplayCh2()
     ClearDigits(5, 3, 5);
     drawNumber(5, 3, float(V2In * RefVoltage / 1023.0));
     drawText(10,3,"V");
-    ClearDigits(5, 4, 10);
-    drawNumber(5, 4, -1*float( ((Amps2Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 ));
-    drawText(10,4,"A");
+  }
+}
+
+void DisplayMosfet1()
+{
+  if ( (IsPLTR1On) && (micros() - Mosfet1DisplayCycle > 500000) )
+  {
+    ClearPixels(MosfetIconXOffset, MosfetIconYOffset, MosfetIconWidth, MosfetIconHeight);
+    drawbitmap(MosfetIconXOffset, MosfetIconYOffset, MosfetIconWidth, MosfetIconHeight, MOSFETOn_bmp);
+    Mosfet1DisplayCycle = micros();
+  }
+  else if ( (!IsPLTR1On) && (micros() - Mosfet1DisplayCycle > 500000) )
+  {
+    ClearPixels(MosfetIconXOffset, MosfetIconYOffset, MosfetIconWidth, MosfetIconHeight);
+    drawbitmap(MosfetIconXOffset, MosfetIconYOffset, MosfetIconWidth, MosfetIconHeight, MOSFETOff_bmp);
+    Mosfet1DisplayCycle = micros();
   }
 }
 
@@ -180,7 +214,8 @@ void ManageChannel1Temp()
 {
   if (V1In > 15.0) // After SteadState acheived
   {
-    if (V1In < MinTempChannel1)
+    //Peltier1 Control
+    if ( (V1In < MinTempChannel1) /*|| (RelativeHumidity1 > 20)*/ )
     {
       digitalWrite(Pltr1Pin, HIGH);
       IsPLTR1On = true;
@@ -190,16 +225,21 @@ void ManageChannel1Temp()
       digitalWrite(Pltr1Pin, LOW);
       IsPLTR1On = false;
     }
+    //Fan1 Control
     if ( (V1In > 45.0) && (IsPLTR1On) && (!IsFan1ManualMode) )
     {
-      digitalWrite(Fan1Pin, HIGH);
+      analogWrite(Fan1Pin,PWM100);
       IsFan1On = true;
     }
-    else // TODO: Add fan PWM manual modes if needed
+    else if ( (V1In > MinTempChannel1) && (V1In < MaxTempChannel1)  && (!IsPLTR1On) && (!IsFan1ManualMode) ) // TODO: Add fan PWM manual modes if needed
     {
-      digitalWrite(Fan1Pin, LOW);
+      analogWrite(Fan1Pin,PWM0);
       IsFan1On = false;
     }
-    
+    else
+    {
+      analogWrite(Fan1Pin,PWM0);
+      IsFan1On = false;
+    }
   }
 }
