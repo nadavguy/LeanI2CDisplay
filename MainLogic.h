@@ -3,22 +3,6 @@
 #include <stdlib.h>
 
 volatile unsigned long GeneralCounter = 0;
-bool IsFan1On = false;
-bool IsFan2On = false;
-bool IsPLTR1On = false;
-bool IsPLTR2On = false;
-
-uint16_t V1 = 0;
-uint16_t V1Array[25] = {0};
-uint16_t V1Sum = 0;
-uint8_t V1Counter = 0;
-uint16_t V1Average = 0;
-
-uint16_t Amps1 = 0;
-uint16_t Amps1Array[25] = {0};
-uint16_t Amps1Sum = 0;
-uint8_t Amps1Counter = 0;
-float Amps1Average = 0;
 
 uint16_t V2 = 0;
 uint16_t V2Array[25] = {0};
@@ -32,17 +16,8 @@ uint16_t Amps2Sum = 0;
 uint8_t Amps2Counter = 0;
 float Amps2Average = 0;
 
-uint16_t VBat = 0;
-uint16_t VBatArray[10] = {0};
-uint16_t VBatSum = 0;
-uint8_t VBatCounter = 0;
-float VBatAverage = 0;
-
-float V1In = 0;
 float V2In = 0;
-float VBatIn = 0;
-//unsigned int VA1 = 0;
-//unsigned long VA1In = 0;
+
 float CalcArrayAverage(uint16_t Array[], uint16_t * Sum,uint8_t * Counter, uint16_t Measuremnt, float ArraySize);
 void watchdogSetup(void)
 {
@@ -66,35 +41,18 @@ void watchdogSetup(void)
 
 ISR(WDT_vect) 
 {
-  //Serial.println(GeneralCounter);
-  //Check Channel1 Voltage & Amper
-  V1 = analogRead(A1); // V1 = Vin * 1.5 / 11.5
-  V1Average = CalcArrayAverage(V1Array, &V1Sum, &V1Counter, V1, 25.0);
-  V1In = V1Average * (9.95+1.52) / 1.52;
-  Serial.print("V1In: ");
-  Serial.println(V1In);
-  Amps1 = analogRead(A2); 
-  Amps1Average = CalcArrayAverage(Amps1Array, &Amps1Sum, &Amps1Counter, Amps1, 25.0);
-  Serial.print("Amps1Average: ");
-  Serial.println(Amps1Average);
-
   //Check Channel2 Voltage & Amper
   V2 = analogRead(A7); // V1 = Vin * 1.5 / 11.5
   V2Average = CalcArrayAverage(V2Array, &V2Sum, &V2Counter, V2, 25.0);
-  V2In = V2Average * (9.95+1.52) / 1.52;
-  Serial.print("V2In: ");
-  Serial.println(V2In);
+  V2In = V2Average * (21.93+2.977) / 2.977;
+  // Serial.print("V2In: ");
+  // Serial.println(V2In);
   Amps2 = analogRead(A6); 
+  Serial.print("Amps2 Raw: ");
+  Serial.println(Amps2);
   Amps2Average = CalcArrayAverage(Amps2Array, &Amps2Sum, &Amps2Counter, Amps2, 25.0);
-  Serial.print("Amps2Average: ");
-  Serial.println(Amps2Average);
-
-  //Check Battery Voltage 
-  VBat = analogRead(A0); // V1 = Vin * 1.5 / 11.5
-  VBatAverage = CalcArrayAverage(VBatArray, &VBatSum, &VBatCounter, VBat, 10.0);
-  
-  Serial.print("VBat: ");
-  Serial.println(VBatAverage);
+  // Serial.print("Amps2Average: ");
+  // Serial.println(Amps2Average);
 }
 
 

@@ -1,12 +1,18 @@
-
 #include <SPI.h>
 #include <Wire.h>
 #include <avr/io.h>
+// #include <avr/sleep.h>
 #include <avr/interrupt.h>
+#include <FastLED.h>
 #include "MainLogic.h"
-#include "DisplaySupport.h"
-#include "PowerImages.h"
+// #include "DisplaySupport.h"
+// #include "PowerImages.h"
 
+#define Charge 3
+#define Relay 4
+#define LED1_PIN 5
+#define LED2_PIN 6
+#define NUM_LEDS 1
 
 // #define SCREEN_WIDTH 128 // OLED display width, in pixels
 // #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -18,56 +24,38 @@ unsigned long CurrentTimeuSec = 0;
 unsigned long Fan1DisplayCycle = 0;
 unsigned long Fan2DisplayCycle = 0;
 unsigned long TwentymSecCycle = 0;
-float PreviousVoltageCh1 = 0;
+
+float MeasuredAmps = 0;
+float MeasuredVoltage = 0;
 float PreviousVoltageCh2 = 0;
-float PreviousVoltageBat = 0;
-float RefVoltage = 5.2;
+
+float RefVoltage = 4.745;
 float Ch1AmpsRefVoltage =507.0;
 
+bool 
 
+CRGB leds[NUM_LEDS];
 
+// u8 PowerButtonState = 1;
+// u8 PowerButtonCounter = 0;
 
-uint8_t Fan1Phase = 0; 
-uint8_t Fan2Phase = 0; 
 void setup() {
   Serial.begin(9600);
-  pinMode(2,OUTPUT);
-  pinMode(A0,INPUT);
-  pinMode(A1,INPUT);
-  pinMode(A2,INPUT);
-  pinMode(A6,INPUT);
-  pinMode(A7,INPUT);
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
-      ; // Don't proceed, loop forevert
-  }
+  // pinMode(2,OUTPUT); //OnBoard LED
+  pinMode(A0,INPUT); // Battery Voltage
+  pinMode(A1,INPUT); // Voltage Channel 1
+  pinMode(A2,INPUT); // Ampere Channel 1
+  pinMode(A6,INPUT); // Ampere Cahnnel 2
+  pinMode(A7,INPUT); // Voltalge Channel 2
+  pinMode(Charge,INPUT_PULLUP); // Charge Button
+  pinMode(Relay,OUTPUT); //Relay
+
+  FastLED.addLeds<WS2812, LED1_PIN, GRB>(leds, NUM_LEDS);
+
   analogReference(DEFAULT);
   watchdogSetup();
+  detachInterrupt(digitalPinToInterrupt(PowerPin));
 
-  //Test SCreen Will Be removed
-  ClearScreen();
-  // drawbitmap(BatteryIconXOffset ,BatteryIconYOffset , BatteryIconWidth, BatteryIconHeight, Battery0Percent_bmp);
-  // drawbitmap(MosfetIconXOffset ,MosfetIconYOffset , MosfetIconWidth, MosfetIconHeight, MOSFETOn_bmp);
-  // drawbitmap(MosfetIconXOffset-20 ,MosfetIconYOffset , MosfetIconWidth, MosfetIconHeight, MOSFETOff_bmp);
-  // drawText(0,1,"Empty Cell");
-  // drawText(0,2,"Full Cell");
-  // drawText(0,3,"Third Line");
-  // drawText(0,4,"Fourth Line");
-  // drawNumber(13,3,float(10));
-  // ClearDigits(1,1,4);
-  // display.setTextColor(SSD1306_BLACK);
-  //  display.setCursor(0, 0);
-	// 	//display.write(' ');
-	// 	display.println("E");
-  //   display.display();
-  ClearScreen();
-  drawText(0,1,"Ch1:");
-  drawText(0,3,"Ch2:");
-  digitalWrite(2, HIGH); 
-  //ClearPixels(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight);
-  //drawbitmap(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight, FANOff_bmp);
   CurrentTimeuSec = micros();
   TwentymSecCycle = micros();
 }
@@ -94,64 +82,7 @@ void loop() {
     TwentymSecCycle = 20000 - (4294967295 - TwentymSecCycle);
   }
 
-
-  DisplayCh1();
   DisplayCh2();
-  DisplayBat();
-
-  // delay(500);
-  // ClearPixels(MosfetIconXOffset ,MosfetIconYOffset , MosfetIconWidth, MosfetIconHeight);
-  // drawbitmap(MosfetIconXOffset ,MosfetIconYOffset , MosfetIconWidth, MosfetIconHeight, FANOn2_bmp);
-  // delay(500);
-}
-
-void DisplayFan()
-{
-  if (IsFan1On)
-  {
-    if ((micros() - Fan1DisplayCycle > 500000) && (Fan1Phase == 0))
-    {
-      ClearPixels(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight);
-      drawbitmap(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight, FANOn1_bmp);
-      Fan1Phase = 1;
-      Fan1DisplayCycle = micros();
-      // ClearDigits(0, 1, 4);
-      // drawNumber(0, 1, float(FanPhase));
-    }
-
-    if ((micros() - Fan1DisplayCycle > 500000) && (Fan1Phase == 1))
-    {
-      ClearPixels(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight);
-      drawbitmap(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight, FANOn2_bmp);
-      Fan1Phase = 0;
-      Fan1DisplayCycle = micros();
-      // ClearDigits(0, 1, 4);
-      // drawNumber(0, 1, float(FanPhase));
-    }
-  }
-  else 
-  {
-    if ((micros() - Fan1DisplayCycle > 5000000) )
-    {
-      ClearPixels(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight);
-      drawbitmap(Fan1IconXOffset, Fan1IconYOffset, Fan1IconWidth, Fan1IconHeight, FANOff_bmp);
-      Fan1DisplayCycle = micros();
-    }
-  }
-}
-
-void DisplayCh1()
-{
-  if ((PreviousVoltageCh1 * 1.01 < float(V1In * RefVoltage / 1023.0)) || (PreviousVoltageCh1 * 0.99 > float(V1In * RefVoltage / 1023.0)))
-  {
-    PreviousVoltageCh1 = float(V1In * RefVoltage / 1023.0);
-    ClearDigits(5, 1, 5);
-    drawNumber(5, 1, float(V1In * RefVoltage / 1023.0));
-    drawText(10,1,"V");
-    ClearDigits(5, 2, 10);
-    drawNumber(5, 2, -1*float( ((Amps1Average - Ch1AmpsRefVoltage)*5.0/1023.0)/0.1 ));
-    drawText(10,2,"A");
-  }
 }
 
 void DisplayCh2()
@@ -159,43 +90,72 @@ void DisplayCh2()
   if ((PreviousVoltageCh2 * 1.01 < float(V2In * RefVoltage / 1023.0)) || (PreviousVoltageCh2 * 0.99 > float(V2In * RefVoltage / 1023.0)))
   {
     PreviousVoltageCh2 = float(V2In * RefVoltage / 1023.0);
-    ClearDigits(5, 3, 5);
-    drawNumber(5, 3, float(V2In * RefVoltage / 1023.0));
-    drawText(10,3,"V");
-    ClearDigits(5, 4, 10);
-    drawNumber(5, 4, -1*float( ((Amps2Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 ));
-    drawText(10,4,"A");
+    MeasuredVoltage = PreviousVoltageCh2;
+    ShowLEDColorAccordingToVA(MeasuredVoltage, Amps2Average);
+    Serial.print("V2: ");
+    Serial.println(float(V2In * RefVoltage / 1023.0));
+    MeasuredAmps = -1*float( ((Amps2Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 );
+    Serial.print("Amps2: ");
+    Serial.println(Amps2Average);
   }
+
 }
 
-void DisplayBat()
+void ShowLEDColorAccordingToVA(float Volt,float Amp)
 {
-  VBatIn = float(VBatAverage * 5.0 / 1023.0);
-  if ((PreviousVoltageBat * 1.02 < VBatIn) || (PreviousVoltageBat * 0.98 > VBatIn))
+  // 10V or lower Red
+  // 10V to 12V Red to Orange
+  // 12V to 13.0V Orange To Yellow
+  // 13.0V to 14V Yellow To Chartreuse
+  // 14V to 14.4 Chartreuse To Green
+
+  if (Volt<10)
   {
-    Serial.print("VBatIn: ");
-    Serial.println(VBatIn);
-    PreviousVoltageBat = VBatIn;
-    ClearPixels(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight);
-    if (VBatIn > 4.1)
-    {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery100Percent_bmp);
-    }
-    else if ((VBatIn <= 4.1) && (VBatIn > 3.9))
-    {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery75Percent_bmp);
-    }
-    else if ((VBatIn <= 3.9) && (VBatIn > 3.7))
-    {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery50Percent_bmp);
-    }
-    else if ((VBatIn <= 3.7) && (VBatIn > 3.5))
-    {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery25Percent_bmp);
-    }
-    else
-    {
-      drawbitmap(BatteryIconXOffset, BatteryIconYOffset, BatteryIconWidth, BatteryIconHeight, Battery0Percent_bmp);
-    }
+    Volt = 10;
+  }
+  if ( (Volt >= 10) && (Volt < 12) ) // Red To Orange
+  {
+    // TempCalc = ((88.125 - Range)/73.125);
+    leds[0] = CRGB(255, (128* (Volt - 10 )/(12.0 - 10.0)) , 0);
+    FastLED.show();
+    // Serial.print("Color Value: ");
+    // Serial.println((128* (Range - 15 )/73.125));
+  }
+  else if ( (Volt >= 12) && (Volt < 13) ) // Orange To Yellow
+  {
+    leds[0] = CRGB(255, (127*(Volt - 12.0)/(13.0 - 12.0)) + 128 , 0);
+    FastLED.show();
+    // Serial.print("Color Value: ");
+    // Serial.println((255*(Range - 88.125)/73.125));
+  }
+  else if ( (Volt >= 13) && (Volt < 14) ) // Yellow To Chartreuse
+  {
+    leds[0] = CRGB((127*(Volt - 13)/(14.0 -13.0)) + 128, 255 , 0);
+    FastLED.show();
+  }
+  else if ( (Volt >= 14) && (Volt < 14.4) ) // Chartreuse To Green
+  {
+    leds[0] = CRGB((128*( Volt - 14)/(14.4 - 14)), 255 , 0);
+    FastLED.show();
+  }
+  else if ( (Volt >= 14.4) && (Amp => 2.0) ) // SpringGreen
+  {
+    leds[0] = CRGB( 0, 255 , 128);
+    FastLED.show();
+  }
+  else if ( (Volt >= 14.4) && (Amp => 1.0) && (Amp < 2.0) ) // Cyan
+  {
+    leds[0] = CRGB( 0, 255 , 255);
+    FastLED.show();
+  }
+  else if ( (Volt >= 14.4) && (Amp => 0.5) && (Amp < 1.0)) // Azure
+  {
+    leds[0] = CRGB( 0, 128, 255);
+    FastLED.show();
+  }
+  else if ( (Volt >= 14.4) && (Amp < 0.5) ) // Blue
+  {
+    leds[0] = CRGB( 0, 0 , 255);
+    FastLED.show();
   }
 }
