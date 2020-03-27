@@ -149,7 +149,7 @@ void DisplayCh1()
     drawNumber(5, 1, float(V1In * RefVoltage / 1023.0));
     drawText(10,1,"V");
     ClearDigits(5, 2, 10);
-    drawNumber(5, 2, -1*float( ((Amps1Average - Ch1AmpsRefVoltage)*5.0/1023.0)/0.1 ));
+    drawNumber(5, 2, -1*float( ((Amps1Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 ));
     drawText(10,2,"A");
   }
 }
