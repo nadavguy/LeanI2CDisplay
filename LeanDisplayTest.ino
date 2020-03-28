@@ -32,7 +32,7 @@ float PreviousVoltageCh2 = 0;
 float RefVoltage = 4.745;
 float Ch1AmpsRefVoltage =507.0;
 
-bool 
+//bool 
 
 CRGB leds[NUM_LEDS];
 
@@ -54,7 +54,7 @@ void setup() {
 
   analogReference(DEFAULT);
   watchdogSetup();
-  detachInterrupt(digitalPinToInterrupt(PowerPin));
+  //detachInterrupt(digitalPinToInterrupt(PowerPin));
 
   CurrentTimeuSec = micros();
   TwentymSecCycle = micros();
@@ -138,17 +138,17 @@ void ShowLEDColorAccordingToVA(float Volt,float Amp)
     leds[0] = CRGB((128*( Volt - 14)/(14.4 - 14)), 255 , 0);
     FastLED.show();
   }
-  else if ( (Volt >= 14.4) && (Amp => 2.0) ) // SpringGreen
+  else if ( (Volt >= 14.4) && (Amp >= 2.0) ) // SpringGreen
   {
     leds[0] = CRGB( 0, 255 , 128);
     FastLED.show();
   }
-  else if ( (Volt >= 14.4) && (Amp => 1.0) && (Amp < 2.0) ) // Cyan
+  else if ( (Volt >= 14.4) && (Amp >= 1.0) && (Amp < 2.0) ) // Cyan
   {
     leds[0] = CRGB( 0, 255 , 255);
     FastLED.show();
   }
-  else if ( (Volt >= 14.4) && (Amp => 0.5) && (Amp < 1.0)) // Azure
+  else if ( (Volt >= 14.4) && (Amp >= 0.5) && (Amp < 1.0)) // Azure
   {
     leds[0] = CRGB( 0, 128, 255);
     FastLED.show();
