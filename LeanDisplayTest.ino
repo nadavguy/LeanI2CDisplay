@@ -21,6 +21,7 @@
 // #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 // Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 unsigned long CurrentTimeuSec = 0;
+unsigned long PreviousSecondTimeuSec = 0;
 unsigned long Fan1DisplayCycle = 0;
 unsigned long Fan2DisplayCycle = 0;
 unsigned long TwentymSecCycle = 0;
@@ -29,15 +30,16 @@ float MeasuredAmps = 0;
 float MeasuredVoltage = 0;
 float PreviousVoltageCh2 = 0;
 
-float RefVoltage = 4.745;
-float Ch1AmpsRefVoltage =507.0;
+float RefVoltage = 3.289;
+float Ch1AmpsRefVoltage =630.52; ///777.59
 
-//bool 
+bool IsCharging = false; 
+bool IsChargingFinished = false;
+
+u8 ChargeButtonState = 1;
+u8 ChargeButtonCounter = 0;
 
 CRGB leds[NUM_LEDS];
-
-// u8 PowerButtonState = 1;
-// u8 PowerButtonCounter = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -50,13 +52,16 @@ void setup() {
   pinMode(Charge,INPUT_PULLUP); // Charge Button
   pinMode(Relay,OUTPUT); //Relay
 
+  digitalWrite(Relay,HIGH);
   FastLED.addLeds<WS2812, LED1_PIN, GRB>(leds, NUM_LEDS);
 
-  analogReference(DEFAULT);
+  analogReference(EXTERNAL);
+  delay(1000);
   watchdogSetup();
   //detachInterrupt(digitalPinToInterrupt(PowerPin));
 
   CurrentTimeuSec = micros();
+  PreviousSecondTimeuSec = micros();
   TwentymSecCycle = micros();
 }
 
@@ -81,24 +86,71 @@ void loop() {
     GeneralCounter++;
     TwentymSecCycle = 20000 - (4294967295 - TwentymSecCycle);
   }
+  
+  ChargeButtonState = digitalRead(Charge);
+  if (!ChargeButtonState)
+  {
+    ChargeButtonCounter++;
+  }
+  else
+  {
+    ChargeButtonCounter = 0;
+  }
 
   DisplayCh2();
+  ShowLEDColorAccordingToVA(MeasuredVoltage, MeasuredAmps);
+
+  if (ChargeButtonCounter >= 20)
+  {
+    while (!digitalRead(Charge))
+    {
+      delay(100);
+    }
+    
+    if (!IsCharging)
+    {
+      Serial.println("Initiate Charge.");
+      delay(2000);
+      digitalWrite(Relay,LOW); 
+      IsCharging = true;
+      IsChargingFinished = false;
+    }
+    else
+    {
+      Serial.println("Stop Charge.");
+      digitalWrite(Relay,HIGH);
+      IsCharging = false;
+    }
+  }
+  if ( (MeasuredVoltage >= 14.4) && (MeasuredAmps < 0.5)  && (IsCharging))
+  {
+    IsChargingFinished = true;
+    IsCharging = false;
+    digitalWrite(Relay,HIGH); 
+  }
+  if (IsChargingFinished)
+  {
+    leds[0] = CRGB( 0, 0, 0);
+    FastLED.show();
+    delay(500);
+  }
 }
 
 void DisplayCh2()
 {
-  if ((PreviousVoltageCh2 * 1.01 < float(V2In * RefVoltage / 1023.0)) || (PreviousVoltageCh2 * 0.99 > float(V2In * RefVoltage / 1023.0)))
+  if (micros() - PreviousSecondTimeuSec > 1000000) //(PreviousVoltageCh2 * 1.001 < float(V2In * RefVoltage / 1023.0)) || (PreviousVoltageCh2 * 0.999 > float(V2In * RefVoltage / 1023.0))
   {
+    PreviousSecondTimeuSec = micros();
     PreviousVoltageCh2 = float(V2In * RefVoltage / 1023.0);
     MeasuredVoltage = PreviousVoltageCh2;
-    ShowLEDColorAccordingToVA(MeasuredVoltage, Amps2Average);
     Serial.print("V2: ");
     Serial.println(float(V2In * RefVoltage / 1023.0));
-    MeasuredAmps = -1*float( ((Amps2Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 );
-    Serial.print("Amps2: ");
+    MeasuredAmps = float(((Amps2Average - Ch1AmpsRefVoltage) * 6.0 / 1023.0) / 0.1);
+    Serial.print("Amps2Average: ");
     Serial.println(Amps2Average);
+    Serial.print("Amps2: ");
+    Serial.println(MeasuredAmps);
   }
-
 }
 
 void ShowLEDColorAccordingToVA(float Volt,float Amp)
@@ -108,7 +160,11 @@ void ShowLEDColorAccordingToVA(float Volt,float Amp)
   // 12V to 13.0V Orange To Yellow
   // 13.0V to 14V Yellow To Chartreuse
   // 14V to 14.4 Chartreuse To Green
+  // Serial.print("Volt: ");
+  // Serial.println(Volt);
 
+  // Serial.print("Amp: ");
+  // Serial.println(Amp);
   if (Volt<10)
   {
     Volt = 10;

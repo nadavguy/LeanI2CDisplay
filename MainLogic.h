@@ -48,8 +48,8 @@ ISR(WDT_vect)
   // Serial.print("V2In: ");
   // Serial.println(V2In);
   Amps2 = analogRead(A6); 
-  Serial.print("Amps2 Raw: ");
-  Serial.println(Amps2);
+  // Serial.print("Amps2 Raw: ");
+  // Serial.println(Amps2);
   Amps2Average = CalcArrayAverage(Amps2Array, &Amps2Sum, &Amps2Counter, Amps2, 25.0);
   // Serial.print("Amps2Average: ");
   // Serial.println(Amps2Average);
