@@ -20,9 +20,15 @@ unsigned long Fan2DisplayCycle = 0;
 unsigned long TwentymSecCycle = 0;
 float PreviousVoltageCh1 = 0;
 float PreviousVoltageCh2 = 0;
+float PreviousAmpereCh1 = 0;
+float PreviousAmpereCh2 = 0;
 float PreviousVoltageBat = 0;
 float RefVoltage = 5.2;
 float Ch1AmpsRefVoltage =507.0;
+float CurrentVoltage1 = 0;
+float CurrentVoltage2 = 0;
+float CurrentAmpere1 = 0;
+float CurrentAmpere2 = 0;
 
 
 
@@ -142,35 +148,47 @@ void DisplayFan()
 
 void DisplayCh1()
 {
-  if ((PreviousVoltageCh1 * 1.01 < float(V1In * RefVoltage / 1023.0)) || (PreviousVoltageCh1 * 0.99 > float(V1In * RefVoltage / 1023.0)))
+  CurrentVoltage1 = float(V1In * RefVoltage / 1023.0);
+  CurrentAmpere1 = -1*float( ((Amps1Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 );
+  if ( abs(CurrentVoltage1 - PreviousVoltageCh1) > 0.05)
   {
-    PreviousVoltageCh1 = float(V1In * RefVoltage / 1023.0);
+    PreviousVoltageCh1 = CurrentVoltage1;
     ClearDigits(5, 1, 5);
-    drawNumber(5, 1, float(V1In * RefVoltage / 1023.0));
+    drawNumber(5, 1, CurrentVoltage1);
     drawText(10,1,"V");
+  }
+  if ( abs(CurrentAmpere1 - PreviousAmpereCh1) > 0.05 )
+  {
+    PreviousAmpereCh1 = CurrentAmpere1;
     ClearDigits(5, 2, 10);
-    drawNumber(5, 2, -1*float( ((Amps1Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 ));
+    drawNumber(5, 2, CurrentAmpere1);
     drawText(10,2,"A");
   }
 }
 
 void DisplayCh2()
 {
-  if ((PreviousVoltageCh2 * 1.01 < float(V2In * RefVoltage / 1023.0)) || (PreviousVoltageCh2 * 0.99 > float(V2In * RefVoltage / 1023.0)))
+  CurrentVoltage2 = float(V2In * RefVoltage / 1023.0);
+  CurrentAmpere2 = -1*float( ((Amps2Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 );
+  if ( abs(CurrentVoltage2 - PreviousVoltageCh2) > 0.05 )
   {
-    PreviousVoltageCh2 = float(V2In * RefVoltage / 1023.0);
+    PreviousVoltageCh2 = CurrentVoltage2;
     ClearDigits(5, 3, 5);
-    drawNumber(5, 3, float(V2In * RefVoltage / 1023.0));
+    drawNumber(5, 3, CurrentVoltage2);
     drawText(10,3,"V");
+  }
+  if ( abs(CurrentAmpere2 - PreviousAmpereCh2) > 0.05 )
+  {
+    PreviousAmpereCh2 = CurrentAmpere2;
     ClearDigits(5, 4, 10);
-    drawNumber(5, 4, -1*float( ((Amps2Average - Ch1AmpsRefVoltage)*RefVoltage/1023.0)/0.1 ));
+    drawNumber(5, 4, CurrentAmpere2);
     drawText(10,4,"A");
   }
 }
 
 void DisplayBat()
 {
-  VBatIn = float(VBatAverage * 5.0 / 1023.0);
+  VBatIn = float(VBatAverage * RefVoltage / 1023.0);
   if ((PreviousVoltageBat * 1.02 < VBatIn) || (PreviousVoltageBat * 0.98 > VBatIn))
   {
     Serial.print("VBatIn: ");
