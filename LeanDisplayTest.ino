@@ -110,6 +110,8 @@ void loop() {
     if (!IsCharging)
     {
       Serial.println("Initiate Charge.");
+      leds[0] = CRGB( 128, 0, 128); //Purple
+      FastLED.show();
       delay(2000);
       digitalWrite(Relay,LOW); 
       IsCharging = true;
@@ -119,6 +121,9 @@ void loop() {
     {
       Serial.println("Stop Charge.");
       digitalWrite(Relay,HIGH);
+      leds[0] = CRGB( 199, 21, 133); //medium violet red
+      FastLED.show();
+      delay(2000);
       IsCharging = false;
     }
   }
@@ -132,7 +137,7 @@ void loop() {
   {
     leds[0] = CRGB( 0, 0, 0);
     FastLED.show();
-    delay(500);
+    delay(1500);
   }
 }
 
@@ -144,7 +149,7 @@ void DisplayCh2()
     PreviousVoltageCh2 = float(V2In * RefVoltage / 1023.0);
     MeasuredVoltage = PreviousVoltageCh2;
     Serial.print("V2: ");
-    Serial.println(float(V2In * RefVoltage / 1023.0));
+    Serial.println(MeasuredVoltage);
     MeasuredAmps = float(((Amps2Average - Ch1AmpsRefVoltage) * 6.0 / 1023.0) / 0.1);
     Serial.print("Amps2Average: ");
     Serial.println(Amps2Average);
@@ -171,18 +176,13 @@ void ShowLEDColorAccordingToVA(float Volt,float Amp)
   }
   if ( (Volt >= 10) && (Volt < 12) ) // Red To Orange
   {
-    // TempCalc = ((88.125 - Range)/73.125);
     leds[0] = CRGB(255, (128* (Volt - 10 )/(12.0 - 10.0)) , 0);
     FastLED.show();
-    // Serial.print("Color Value: ");
-    // Serial.println((128* (Range - 15 )/73.125));
   }
   else if ( (Volt >= 12) && (Volt < 13) ) // Orange To Yellow
   {
     leds[0] = CRGB(255, (127*(Volt - 12.0)/(13.0 - 12.0)) + 128 , 0);
     FastLED.show();
-    // Serial.print("Color Value: ");
-    // Serial.println((255*(Range - 88.125)/73.125));
   }
   else if ( (Volt >= 13) && (Volt < 14) ) // Yellow To Chartreuse
   {
@@ -204,9 +204,9 @@ void ShowLEDColorAccordingToVA(float Volt,float Amp)
     leds[0] = CRGB( 0, 255 , 255);
     FastLED.show();
   }
-  else if ( (Volt >= 14.4) && (Amp >= 0.5) && (Amp < 1.0)) // Azure
+  else if ( (Volt >= 14.4) && (Amp >= 0.5) && (Amp < 1.0)) // Indigo
   {
-    leds[0] = CRGB( 0, 128, 255);
+    leds[0] = CRGB( 75, 0, 130);
     FastLED.show();
   }
   else if ( (Volt >= 14.4) && (Amp < 0.5) ) // Blue
