@@ -24,7 +24,8 @@ float PreviousAmpereCh1 = 0;
 float PreviousAmpereCh2 = 0;
 float PreviousVoltageBat = 0;
 float RefVoltage = 5.2;
-float Ch1AmpsRefVoltage =507.0;
+float Ch1AmpsRefVoltage = 507.0;
+float Ch2AmpsRefVoltage = 507.0;
 float CurrentVoltage1 = 0;
 float CurrentVoltage2 = 0;
 float CurrentAmpere1 = 0;
@@ -50,6 +51,23 @@ void setup() {
       ; // Don't proceed, loop forevert
   }
   analogReference(DEFAULT);
+  // Reinstate only after adding calibration button
+  // delay(500);
+  // for (int i = 0; i < 25; i++)
+  // {
+  //   Amps1 = analogRead(A2); 
+  //   Amps1Average = CalcArrayAverage(Amps1Array, &Amps1Sum, &Amps1Counter, Amps1, 25.0);
+  //   Amps2 = analogRead(A6); 
+  //   Amps2Average = CalcArrayAverage(Amps2Array, &Amps2Sum, &Amps2Counter, Amps2, 25.0);
+  // }
+  // Ch1AmpsRefVoltage = Amps1Average;
+  // Ch2AmpsRefVoltage = Amps2Average;
+  // Serial.print("Channel1 Ampere Referance voltage: ");
+  // Serial.println(Ch1AmpsRefVoltage);
+  // Serial.print("Channel2 Ampere Referance voltage: ");
+  // Serial.println(Ch2AmpsRefVoltage);
+  delay(1000);
+
   watchdogSetup();
 
   //Test SCreen Will Be removed
