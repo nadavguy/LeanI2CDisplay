@@ -31,7 +31,7 @@ float MeasuredVoltage = 0;
 float PreviousVoltageCh2 = 0;
 
 float RefVoltage = 3.289;
-float Ch1AmpsRefVoltage =630.52; ///777.59
+float Ch1AmpsRefVoltage =623.52; ///777.59
 
 bool IsCharging = false; 
 bool IsChargingFinished = false;
@@ -56,6 +56,15 @@ void setup() {
   FastLED.addLeds<WS2812, LED1_PIN, GRB>(leds, NUM_LEDS);
 
   analogReference(EXTERNAL);
+  delay(500);
+  for (int i = 0; i < 25; i++)
+  {
+    Amps2 = analogRead(A6); 
+    Amps2Average = CalcArrayAverage(Amps2Array, &Amps2Sum, &Amps2Counter, Amps2, 25.0);
+  }
+  Ch1AmpsRefVoltage = Amps2Average;
+  Serial.print("Ampere Referance voltage: ");
+  Serial.println(Ch1AmpsRefVoltage);
   delay(1000);
   watchdogSetup();
   //detachInterrupt(digitalPinToInterrupt(PowerPin));
